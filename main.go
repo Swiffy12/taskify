@@ -22,7 +22,7 @@ func main() {
 
 	go func() {
 		osCall := <-c
-		fmt.Printf("syatem call: %v\n", osCall)
+		fmt.Printf("system call: %v\n", osCall)
 		server.Shutdown()
 		cancel()
 	}()

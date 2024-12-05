@@ -1,8 +1,9 @@
 package config
 
 import (
-	"log"
+	"fmt"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -30,8 +31,12 @@ func LoadConfig() Config {
 
 	err := v.Unmarshal(&cfg)
 	if err != nil {
-		log.Fatalln(err)
+		logrus.Fatalln(err)
 	}
 
 	return cfg
+}
+
+func (c *Config) GetStringDatabaseConnection() string {
+	return fmt.Sprintf(`postgres://%s:%s@%s:%s/%s`, c.DBUser, c.DBPass, c.DBHost, c.DBPort, c.DBName)
 }

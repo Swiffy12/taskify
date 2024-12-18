@@ -16,6 +16,9 @@ func NewUsersService(storage *storages.UsersStorage) *UsersService {
 }
 
 func (service *UsersService) GetAllUsers() []models.User {
+	return service.storage.FindAllUsers()
+}
 
-	return service.storage.FindAll()
+func (service *UsersService) GetOneUser(id int64) models.User {
+	return service.storage.FindOneUserById(id)
 }

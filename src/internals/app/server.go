@@ -10,6 +10,7 @@ import (
 	"github.com/Swiffy12/taskify/src/internals/app/services"
 	"github.com/Swiffy12/taskify/src/internals/app/storages"
 	"github.com/Swiffy12/taskify/src/internals/config"
+	"github.com/Swiffy12/taskify/src/internals/middleware"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 )
@@ -37,16 +38,26 @@ func (server *Server) Listen() {
 		logrus.Fatalln(err)
 	}
 
+	authStorage := storages.NewAuthStorage(server.db) //Try to optimize
 	usersStorage := storages.NewUsersStorage(server.db)
 	tasksStorage := storages.NewTasksStorage(server.db)
 
+	authService := services.NewAuthService(authStorage)
 	tasksService := services.NewTasksService(tasksStorage)
 	usersService := services.NewUsersService(usersStorage)
 
+	authHandler := handlers.NewAuthHandler(authService)
 	tasksHandler := handlers.NewTasksHandler(tasksService)
 	usersHandler := handlers.NewUsersHandler(usersService)
 
-	routes := api.CreateRoutes(tasksHandler, usersHandler)
+	routes := api.CreateRoutes(tasksHandler, usersHandler, authHandler)
+
+	whitelist := []string{
+		"/auth/login",
+		"/auth/register",
+	}
+
+	routes.Use(middleware.CheckResolution(whitelist))
 
 	server.srv = &http.Server{
 		Addr:    ":" + server.config.Port,

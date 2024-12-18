@@ -17,11 +17,11 @@ func NewTasksHandler(service *services.TasksService) *TasksHandler {
 	return tasksHandler
 }
 
-func (th *TasksHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
+func (tasksHandler *TasksHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("get all tasks")
 }
 
-func (th *TasksHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (tasksHandler *TasksHandler) Create(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.Body)
 
 }

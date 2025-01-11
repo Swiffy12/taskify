@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -21,21 +20,25 @@ func NewUsersHandler(service *services.UsersService) *UsersHandler {
 }
 
 func (usersHandler *UsersHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	listUsers := usersHandler.service.GetAllUsers()
+	vars := r.URL.Query()
+	fullname := vars.Get("fullname")
+	rank := vars.Get("rank")
+
+	listUsers := usersHandler.service.GetAllUsers(fullname, rank)
 	WrapOK(w, listUsers)
 }
 
 func (usersHandler *UsersHandler) GetOneUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	fmt.Printf("%s", vars["id"])
+
 	if vars["id"] == "" {
-		WrapErrorBadRequest(w, errors.New("missing id"))
+		WrapErrorBadRequest(w, errors.New("пропущено id пользователя"))
 		return
 	}
 
 	id, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		WrapErrorBadRequest(w, err)
+		WrapErrorBadRequest(w, errors.New("недопустимый формат ввода id"))
 		return
 	}
 

@@ -2,9 +2,12 @@ package storages
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/Swiffy12/taskify/src/internals/app/models"
 	"github.com/georgysavva/scany/pgxscan"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 )
@@ -19,11 +22,26 @@ func NewUsersStorage(pool *pgxpool.Pool) *UsersStorage {
 	return usersStorage
 }
 
-func (storage *UsersStorage) FindAllUsers() []models.User {
+func (storage *UsersStorage) FindUsersWithFilter(fullname string, rank string) []models.User {
 
-	query := "SELECT * FROM users"
+	query := "SELECT * FROM users WHERE 1=1"
 	var result []models.User
-	err := pgxscan.Select(context.Background(), storage.databasePool, &result, query)
+	args := make([]interface{}, 0)
+	placeholderNumber := 1
+
+	if fullname != "" {
+		query += fmt.Sprintf(" AND full_name ILIKE $%d", placeholderNumber)
+		args = append(args, fmt.Sprintf("%%%s%%", fullname))
+		placeholderNumber++
+	}
+
+	if rank != "" {
+		query += fmt.Sprintf(" AND rank ILIKE $%d", placeholderNumber)
+		args = append(args, fmt.Sprintf("%%%s%%", rank))
+		placeholderNumber++
+	}
+
+	err := pgxscan.Select(context.Background(), storage.databasePool, &result, query, args...)
 
 	if err != nil {
 		logrus.Errorln(err)
@@ -38,7 +56,7 @@ func (storage *UsersStorage) FindOneUserById(id int64) models.User {
 	var result models.User
 	err := pgxscan.Get(context.Background(), storage.databasePool, &result, query, id)
 
-	if err != nil {
+	if err = errors.Unwrap(errors.Unwrap(err)); err != nil && err != pgx.ErrNoRows { // Дублирование кода
 		logrus.Errorln(err)
 	}
 

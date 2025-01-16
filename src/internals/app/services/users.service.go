@@ -19,6 +19,6 @@ func (service *UsersService) GetAllUsers(fullname string, rank string) []models.
 	return service.storage.FindUsersWithFilter(fullname, rank)
 }
 
-func (service *UsersService) GetOneUser(id int64) models.User {
+func (service *UsersService) GetOneUser(id int64) (models.User, error) {
 	return service.storage.FindOneUserById(id)
 }

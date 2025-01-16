@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/Swiffy12/taskify/src/internals/app/handlers"
+	"github.com/Swiffy12/taskify/src/internals/constants"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -52,7 +54,13 @@ func CheckResolution(whitelist []string) mux.MiddlewareFunc {
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			userId, err := token.Claims.GetSubject()
+			if err != nil {
+				handlers.WrapErrorUnauthorized(w, errors.New("недопустимые данные токена"))
+			}
+
+			ctx := context.WithValue(r.Context(), constants.UserIdKey, userId)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

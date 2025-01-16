@@ -50,15 +50,18 @@ func (storage *UsersStorage) FindUsersWithFilter(fullname string, rank string) [
 	return result
 }
 
-func (storage *UsersStorage) FindOneUserById(id int64) models.User {
+func (storage *UsersStorage) FindOneUserById(id int64) (models.User, error) {
 
 	query := "SELECT * FROM users WHERE id = $1"
 	var result models.User
 	err := pgxscan.Get(context.Background(), storage.databasePool, &result, query, id)
 
-	if err = errors.Unwrap(errors.Unwrap(err)); err != nil && err != pgx.ErrNoRows { // Дублирование кода
+	if err = errors.Unwrap(errors.Unwrap(err)); err != nil { // Дублирование кода
+		if err == pgx.ErrNoRows {
+			return result, errors.New("не удалось найти данного пользователя")
+		}
 		logrus.Errorln(err)
 	}
 
-	return result
+	return result, nil
 }

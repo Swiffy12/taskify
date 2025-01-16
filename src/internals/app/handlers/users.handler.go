@@ -19,7 +19,7 @@ func NewUsersHandler(service *services.UsersService) *UsersHandler {
 	return usersHandler
 }
 
-func (usersHandler *UsersHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
 	fullname := vars.Get("fullname")
 	rank := vars.Get("rank")
@@ -42,6 +42,10 @@ func (usersHandler *UsersHandler) GetOneUser(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	user := usersHandler.service.GetOneUser(id)
+	user, err := usersHandler.service.GetOneUser(id)
+	if err != nil {
+		WrapErrorNotFound(w, err)
+		return
+	}
 	WrapOK(w, user)
 }

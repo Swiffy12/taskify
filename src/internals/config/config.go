@@ -29,6 +29,7 @@ func LoadConfig() Config {
 	v.SetDefault("DATABASE_PASS", "taskify")
 	v.SetDefault("DATABASE_NAME", "taskify")
 	v.SetDefault("JWT_SECRET_KEY", "fghiwemDUELdF01d3")
+	v.SetDefault("USER_ID_KEY", "userId")
 	v.AutomaticEnv()
 
 	err := v.Unmarshal(&cfg)

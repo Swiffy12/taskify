@@ -9,7 +9,6 @@ import (
 	"github.com/Swiffy12/taskify/src/internals/app/models"
 	"github.com/Swiffy12/taskify/src/internals/app/storages"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -37,7 +36,6 @@ func (service *AuthService) Register(authModel models.Auth) (string, error) {
 	var createdUser models.User
 	createdUser, err = service.storage.CreateOneUser(authModel, string(passwordHash))
 	if err != nil {
-		logrus.Errorln(err)
 		return "", errors.New("не удалось создать пользователя")
 	}
 

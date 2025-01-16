@@ -22,8 +22,11 @@ func WrapErrorWithStatus(w http.ResponseWriter, err error, httpStatus int) {
 func WrapOK(w http.ResponseWriter, value any) {
 	var m = map[string]any{
 		"result": "OK",
-		"data":   value,
 	}
+	if value != nil {
+		m["data"] = value
+	}
+
 	res, _ := json.Marshal(m)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

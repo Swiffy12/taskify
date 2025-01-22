@@ -11,6 +11,7 @@ import (
 	"github.com/Swiffy12/taskify/src/internals/constants"
 	"github.com/asaskevich/govalidator"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,7 +26,7 @@ func NewTasksHandler(service *services.TasksService) *TasksHandler {
 }
 
 func (tasksHandler *TasksHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
-	var newTask models.Task
+	var newTask models.CreateTaskRequestDTO
 
 	userId := r.Context().Value(constants.UserIdKey).(string)
 	err := json.NewDecoder(r.Body).Decode(&newTask)
@@ -47,7 +48,7 @@ func (tasksHandler *TasksHandler) CreateTask(w http.ResponseWriter, r *http.Requ
 
 	createdUser, err := tasksHandler.service.CreateOneTask(userId, newTask)
 	if err != nil {
-		WrapErrorBadRequest(w, err)
+		WrapErrorInternalServerError(w)
 		return
 	}
 
@@ -56,13 +57,49 @@ func (tasksHandler *TasksHandler) CreateTask(w http.ResponseWriter, r *http.Requ
 
 func (tasksHandler *TasksHandler) GetTasks(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
+	var id, creatorId, assignedId uint64
+	var err error
 
-	id := vars.Get("id")
-	title := vars.Get("title")
-	creator := vars.Get("creator")
-	assigned := vars.Get("assigned")
+	queryId := vars.Get("id")
+	if queryId != "" {
+		id, err = strconv.ParseUint(queryId, 10, 64)
+		if err != nil {
+			WrapErrorBadRequest(w, errors.New("недопустимый формат ввода"))
+			return
+		}
+	}
 
-	tasks := tasksHandler.service.GetTasksWithFilter(id, title, creator, assigned)
+	queryCreatorId := vars.Get("creator_id")
+	if queryCreatorId != "" {
+		creatorId, err = strconv.ParseUint(queryCreatorId, 10, 64)
+		if err != nil {
+			WrapErrorBadRequest(w, errors.New("недопустимый формат ввода"))
+			return
+		}
+	}
+
+	queryAssignedId := vars.Get("assigned_id")
+	if queryAssignedId != "" {
+		assignedId, err = strconv.ParseUint(queryAssignedId, 10, 64)
+		if err != nil {
+			WrapErrorBadRequest(w, errors.New("недопустимый формат ввода"))
+			return
+		}
+	}
+
+	queryParams := models.GetTasksRequestDTO{
+		Id:         id,
+		Title:      vars.Get("title"),
+		CreatorId:  creatorId,
+		AssignedId: assignedId,
+	}
+
+	tasks, err := tasksHandler.service.GetTasksWithFilter(queryParams)
+	if err != nil {
+		WrapErrorInternalServerError(w)
+		return
+	}
+
 	WrapOK(w, tasks)
 }
 
@@ -73,7 +110,7 @@ func (tasksHandler *TasksHandler) GetTask(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		WrapErrorBadRequest(w, errors.New("недопустимый формат ввода id задачи"))
 		return
@@ -81,7 +118,11 @@ func (tasksHandler *TasksHandler) GetTask(w http.ResponseWriter, r *http.Request
 
 	task, err := tasksHandler.service.GetOneTask(id)
 	if err != nil {
-		WrapErrorNotFound(w, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			WrapErrorNotFound(w, errors.New("не удалось найти данную задачу"))
+			return
+		}
+		WrapErrorInternalServerError(w)
 		return
 	}
 	WrapOK(w, task)
@@ -94,7 +135,7 @@ func (tasksHandler *TasksHandler) DeleteTask(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		WrapErrorBadRequest(w, errors.New("недопустимый формат ввода id задачи"))
 		return
@@ -102,7 +143,11 @@ func (tasksHandler *TasksHandler) DeleteTask(w http.ResponseWriter, r *http.Requ
 
 	err = tasksHandler.service.DeleteOneTask(id)
 	if err != nil {
-		WrapErrorNotFound(w, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			WrapErrorNotFound(w, errors.New("не удалось найти данную задачу"))
+			return
+		}
+		WrapErrorInternalServerError(w)
 		return
 	}
 	WrapOK(w, nil)
@@ -115,7 +160,7 @@ func (tasksHandler *TasksHandler) UpdateTask(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		WrapErrorBadRequest(w, errors.New("недопустимый формат ввода id задачи"))
 		return
@@ -142,7 +187,11 @@ func (tasksHandler *TasksHandler) UpdateTask(w http.ResponseWriter, r *http.Requ
 
 	updatedTask, err := tasksHandler.service.UpdateOneTask(id, taskBody)
 	if err != nil {
-		WrapErrorNotFound(w, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			WrapErrorNotFound(w, errors.New("не удалось найти данную задачу"))
+			return
+		}
+		WrapErrorInternalServerError(w)
 		return
 	}
 	WrapOK(w, updatedTask)

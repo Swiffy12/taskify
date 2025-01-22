@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Swiffy12/taskify/src/internals/app/models"
 	"github.com/Swiffy12/taskify/src/internals/app/services"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v4"
 )
 
 type UsersHandler struct {
@@ -21,10 +23,16 @@ func NewUsersHandler(service *services.UsersService) *UsersHandler {
 
 func (usersHandler *UsersHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
-	fullname := vars.Get("fullname")
-	rank := vars.Get("rank")
+	queryParams := models.GetUsersRequestDTO{
+		FullName: vars.Get("fullname"),
+		Rank:     vars.Get("rank"),
+	}
 
-	listUsers := usersHandler.service.GetAllUsers(fullname, rank)
+	listUsers, err := usersHandler.service.GetUsersWithFilter(queryParams)
+	if err != nil {
+		WrapErrorInternalServerError(w)
+		return
+	}
 	WrapOK(w, listUsers)
 }
 
@@ -44,7 +52,11 @@ func (usersHandler *UsersHandler) GetOneUser(w http.ResponseWriter, r *http.Requ
 
 	user, err := usersHandler.service.GetOneUser(id)
 	if err != nil {
-		WrapErrorNotFound(w, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			WrapErrorNotFound(w, errors.New("пользователь не найден"))
+			return
+		}
+		WrapErrorInternalServerError(w)
 		return
 	}
 	WrapOK(w, user)

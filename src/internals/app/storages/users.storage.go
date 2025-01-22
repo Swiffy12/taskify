@@ -22,22 +22,22 @@ func NewUsersStorage(pool *pgxpool.Pool) *UsersStorage {
 	return usersStorage
 }
 
-func (storage *UsersStorage) FindUsersWithFilter(fullname string, rank string) []models.User {
+func (storage *UsersStorage) GetUsersWithFilter(queryParams models.GetUsersRequestDTO) ([]models.GetUserResponseDTO, error) {
 
-	query := "SELECT * FROM users WHERE 1=1"
-	var result []models.User
-	args := make([]interface{}, 0)
+	query := "SELECT id, full_name, rank, phone, email FROM users WHERE 1=1"
+	var result []models.GetUserResponseDTO
+	args := make([]any, 0)
 	placeholderNumber := 1
 
-	if fullname != "" {
+	if queryParams.FullName != "" {
 		query += fmt.Sprintf(" AND full_name ILIKE $%d", placeholderNumber)
-		args = append(args, fmt.Sprintf("%%%s%%", fullname))
+		args = append(args, fmt.Sprintf("%%%s%%", queryParams.FullName))
 		placeholderNumber++
 	}
 
-	if rank != "" {
+	if queryParams.Rank != "" {
 		query += fmt.Sprintf(" AND rank ILIKE $%d", placeholderNumber)
-		args = append(args, fmt.Sprintf("%%%s%%", rank))
+		args = append(args, fmt.Sprintf("%%%s%%", queryParams.Rank))
 		placeholderNumber++
 	}
 
@@ -45,23 +45,24 @@ func (storage *UsersStorage) FindUsersWithFilter(fullname string, rank string) [
 
 	if err != nil {
 		logrus.Errorln(err)
-	}
-
-	return result
-}
-
-func (storage *UsersStorage) FindOneUserById(id int64) (models.User, error) {
-
-	query := "SELECT * FROM users WHERE id = $1"
-	var result models.User
-	err := pgxscan.Get(context.Background(), storage.databasePool, &result, query, id)
-
-	if err = errors.Unwrap(errors.Unwrap(err)); err != nil { // Дублирование кода
-		if err == pgx.ErrNoRows {
-			return result, errors.New("не удалось найти данного пользователя")
-		}
-		logrus.Errorln(err)
+		return nil, err
 	}
 
 	return result, nil
+}
+
+func (storage *UsersStorage) FindOneUserById(id int64) (*models.GetUserResponseDTO, error) {
+
+	query := "SELECT id, full_name, rank, phone, email FROM users WHERE id = $1"
+	var result models.GetUserResponseDTO
+	err := pgxscan.Get(context.Background(), storage.databasePool, &result, query, id)
+
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			logrus.Errorln(err)
+		}
+		return nil, err
+	}
+
+	return &result, nil
 }

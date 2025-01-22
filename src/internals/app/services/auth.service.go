@@ -40,7 +40,7 @@ func (service *AuthService) Register(authModel models.Auth) (string, error) {
 	}
 
 	payload := jwt.MapClaims{
-		"sub": strconv.FormatInt(createdUser.Id, 10),
+		"sub": strconv.FormatUint(createdUser.Id, 10),
 		"exp": time.Now().Add(time.Hour * 2).Unix(),
 	}
 
@@ -65,7 +65,7 @@ func (service *AuthService) Login(email string, password string) (string, error)
 	}
 
 	payload := jwt.MapClaims{
-		"sub": strconv.FormatInt(existedUser.Id, 10),
+		"sub": strconv.FormatUint(existedUser.Id, 10),
 		"exp": time.Now().Add(time.Hour * 2).Unix(),
 	}
 

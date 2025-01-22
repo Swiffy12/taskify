@@ -15,10 +15,10 @@ func NewUsersService(storage *storages.UsersStorage) *UsersService {
 	return usersService
 }
 
-func (service *UsersService) GetAllUsers(fullname string, rank string) []models.User {
-	return service.storage.FindUsersWithFilter(fullname, rank)
+func (service *UsersService) GetUsersWithFilter(queryParams models.GetUsersRequestDTO) ([]models.GetUserResponseDTO, error) {
+	return service.storage.GetUsersWithFilter(queryParams)
 }
 
-func (service *UsersService) GetOneUser(id int64) (models.User, error) {
+func (service *UsersService) GetOneUser(id int64) (*models.GetUserResponseDTO, error) {
 	return service.storage.FindOneUserById(id)
 }

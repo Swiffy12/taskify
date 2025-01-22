@@ -1,8 +1,6 @@
 package services
 
 import (
-	"errors"
-
 	"github.com/Swiffy12/taskify/src/internals/app/models"
 	"github.com/Swiffy12/taskify/src/internals/app/storages"
 )
@@ -17,25 +15,19 @@ func NewTasksService(storage *storages.TasksStorage) *TasksService {
 	return tasksService
 }
 
-func (service TasksService) CreateOneTask(userId string, taskBody models.Task) (models.Task, error) {
-
-	createdUser, err := service.storage.CreateTask(userId, taskBody)
-	if err != nil {
-		return createdUser, errors.New("не удалось создать задачу")
-	}
-
-	return createdUser, err
+func (service TasksService) CreateOneTask(userId string, taskBody models.CreateTaskRequestDTO) (*models.Task, error) {
+	return service.storage.CreateTask(userId, taskBody)
 }
 
-func (service TasksService) GetTasksWithFilter(id string, title string, creator string, assigned string) []models.Task {
-	return service.storage.GetTasksWithFilter(id, title, creator, assigned)
+func (service TasksService) GetTasksWithFilter(queryParams models.GetTasksRequestDTO) ([]models.Task, error) {
+	return service.storage.GetTasksWithFilter(queryParams)
 }
 
-func (service TasksService) GetOneTask(id int64) (models.Task, error) {
+func (service TasksService) GetOneTask(id uint64) (*models.Task, error) {
 	return service.storage.GetOneTask(id)
 }
 
-func (service TasksService) DeleteOneTask(id int64) error {
+func (service TasksService) DeleteOneTask(id uint64) error {
 	task, err := service.storage.GetOneTask(id)
 	if err != nil {
 		return err
@@ -48,10 +40,11 @@ func (service TasksService) DeleteOneTask(id int64) error {
 	return nil
 }
 
-func (service TasksService) UpdateOneTask(id int64, taskBody models.UpdateTaskRequestDTO) (models.Task, error) {
+func (service TasksService) UpdateOneTask(id uint64, taskBody models.UpdateTaskRequestDTO) (*models.Task, error) {
 	foundTask, err := service.storage.GetOneTask(id)
 	if err != nil {
-		return foundTask, err
+		return nil, err
 	}
-	return service.storage.UpdateOneTask(id, taskBody), nil
+
+	return service.storage.UpdateOneTask(foundTask.Id, taskBody)
 }

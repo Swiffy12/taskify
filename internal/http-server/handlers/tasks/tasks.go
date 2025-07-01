@@ -1,4 +1,4 @@
-package taskhandler
+package taskshandler
 
 import (
 	"errors"
@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/Swiffy12/taskify/internal/http-server/models"
-	taskservice "github.com/Swiffy12/taskify/internal/http-server/services/task"
 	resp "github.com/Swiffy12/taskify/internal/lib/api/response"
 	"github.com/Swiffy12/taskify/internal/lib/logger/sl"
 	"github.com/go-chi/chi"
@@ -18,15 +17,23 @@ import (
 
 type TaskHandler struct {
 	log     *slog.Logger
-	service *taskservice.TaskService
+	service TaskService
 }
 
-func New(log *slog.Logger, service *taskservice.TaskService) *TaskHandler {
+type TaskService interface {
+	CreateTask(title, description string) (int, error)
+	GetAllTasks(title string) ([]models.Task, error)
+	GetTask(id int) (models.Task, error)
+	DeleteTask(id int) (int, error)
+	UpdateTask(id int, req models.UpdateTaskRequest) (models.Task, error)
+}
+
+func New(log *slog.Logger, service TaskService) *TaskHandler {
 	return &TaskHandler{log: log, service: service}
 }
 
 func (t *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
-	const op = "handlers.task.CreateTask"
+	const op = "handlers.tasks.CreateTask"
 
 	log := t.log.With(
 		slog.String("op", op),
@@ -70,7 +77,7 @@ func (t *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (t *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
-	const op = "handlers.task.GetAllTasks"
+	const op = "handlers.tasks.GetAllTasks"
 
 	log := t.log.With(
 		slog.String("op", op),
@@ -90,7 +97,7 @@ func (t *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (t *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
-	const op = "handlers.task.GetTask"
+	const op = "handlers.tasks.GetTask"
 
 	log := t.log.With(
 		slog.String("op", op),
@@ -116,7 +123,7 @@ func (t *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (t *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
-	const op = "handlers.task.DeleteTask"
+	const op = "handlers.tasks.DeleteTask"
 
 	log := t.log.With(
 		slog.String("op", op),
@@ -150,7 +157,7 @@ func (t *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (t *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
-	const op = "handlers.task.UpdateTask"
+	const op = "handlers.tasks.UpdateTask"
 
 	log := t.log.With(
 		slog.String("op", op),

@@ -15,6 +15,9 @@ type Config struct {
 	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
 	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"30s"`
 	Storage     `yaml:"postgresql"`
+	Clients     ClientsConfig `yaml:"clients"`
+	AppSecret   string        `yaml:"app_secret" env-required:"true" env:"APP_SECRET"`
+	AppId       int32         `yaml:"app_id" env-default:2`
 }
 
 type Storage struct {
@@ -23,6 +26,16 @@ type Storage struct {
 	DBUser     string `yaml:"user" env-required:"true"`
 	DBPassword string `yaml:"password" env-required:"true"`
 	DBName     string `yaml:"name" env-required:"true"`
+}
+
+type Client struct {
+	Address      string        `yaml:"address"`
+	Timeout      time.Duration `yaml:"timeout"`
+	RetriesCount int           `yaml:"retries_count"`
+}
+
+type ClientsConfig struct {
+	SSO Client `yaml:"sso"`
 }
 
 func MustLoad() *Config {

@@ -9,9 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	ssogrpc "github.com/Swiffy12/taskify/internal/clients/sso/grpc"
 	"github.com/Swiffy12/taskify/internal/config"
-	taskhandler "github.com/Swiffy12/taskify/internal/http-server/handlers/task"
-	taskservice "github.com/Swiffy12/taskify/internal/http-server/services/task"
+	taskshandler "github.com/Swiffy12/taskify/internal/http-server/handlers/tasks"
+	usershandler "github.com/Swiffy12/taskify/internal/http-server/handlers/users"
+	taskservice "github.com/Swiffy12/taskify/internal/http-server/services/tasks"
 	"github.com/Swiffy12/taskify/internal/lib/logger/sl"
 	"github.com/Swiffy12/taskify/internal/storage/postgresql"
 	"github.com/go-chi/chi"
@@ -21,6 +23,19 @@ func main() {
 	config := config.MustLoad()
 
 	log := setupLogger(config.Env)
+
+	ssoClient, err := ssogrpc.New(
+		context.Background(),
+		log,
+		config.Clients.SSO.Address,
+		config.Clients.SSO.Timeout,
+		config.Clients.SSO.RetriesCount,
+		config.AppId,
+	)
+	if err != nil {
+		log.Error("failed to init sso client", sl.Err(err))
+		os.Exit(1)
+	}
 
 	storage, err := postgresql.New(
 		config.Storage.DBHost,
@@ -36,7 +51,8 @@ func main() {
 	defer storage.DB.Close()
 
 	taskService := taskservice.New(storage)
-	taskHandler := taskhandler.New(log, taskService)
+	taskHandler := taskshandler.New(log, taskService)
+	usersHandler := usershandler.New(log, ssoClient)
 	router := chi.NewRouter()
 
 	router.Post("/tasks", taskHandler.CreateTask)
@@ -44,6 +60,8 @@ func main() {
 	router.Get("/tasks", taskHandler.GetAllTasks)
 	router.Patch("/tasks/{id}", taskHandler.UpdateTask)
 	router.Delete("/tasks/{id}", taskHandler.DeleteTask)
+	router.Post("/registration", usersHandler.Register)
+	router.Post("/login", usersHandler.Login)
 
 	log.Info("starting server")
 

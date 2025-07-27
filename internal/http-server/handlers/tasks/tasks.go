@@ -10,6 +10,7 @@ import (
 	"github.com/Swiffy12/taskify/internal/http-server/models"
 	resp "github.com/Swiffy12/taskify/internal/lib/api/response"
 	"github.com/Swiffy12/taskify/internal/lib/logger/sl"
+	"github.com/Swiffy12/taskify/internal/storage"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -20,6 +21,7 @@ type TaskHandler struct {
 	service TaskService
 }
 
+//go:generate mockery --r --name TaskService --output ./mocks --case underscore
 type TaskService interface {
 	CreateTask(title, description string) (int, error)
 	GetAllTasks(title string) ([]models.Task, error)
@@ -44,27 +46,26 @@ func (t *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			log.Error("request body is empty", sl.Err(err))
-			render.JSON(w, r, resp.Error("empty request"))
+			resp.Error(w, r, http.StatusBadRequest, "empty request")
 			return
 		}
 		log.Error("failed to decode request body", sl.Err(err))
-		render.JSON(w, r, "failed to decode request body")
+		resp.Error(w, r, http.StatusBadRequest, "failed to decode request body")
 		return
 	}
 
 	if err := validator.New().Struct(req); err != nil {
 		validateErr := err.(validator.ValidationErrors)
 		log.Error("invalid request", sl.Err(err))
-		render.JSON(w, r, resp.ValidationError(validateErr))
+		resp.ValidationError(w, r, http.StatusBadRequest, validateErr)
 		return
 	}
 
 	log.Info("creating task")
 	id, err := t.service.CreateTask(req.Title, req.Description)
 	if err != nil {
-		// Ошибку storage
 		log.Error("failed to create task", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to create task"))
+		resp.Error(w, r, http.StatusInternalServerError, "failed to create task")
 		return
 	}
 
@@ -73,7 +74,7 @@ func (t *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info("task created", slog.Int("id", id))
-	render.JSON(w, r, resp.OK(res))
+	resp.OK(w, r, http.StatusOK, res)
 }
 
 func (t *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
@@ -87,13 +88,12 @@ func (t *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := t.service.GetAllTasks(title)
 	if err != nil {
-		// Ошибку storage
 		log.Error("failed to get tasks", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to get tasks"))
+		resp.Error(w, r, http.StatusInternalServerError, "failed to get tasks")
 		return
 	}
 
-	render.JSON(w, r, resp.OK(tasks))
+	resp.OK(w, r, http.StatusOK, tasks)
 }
 
 func (t *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
@@ -107,19 +107,24 @@ func (t *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(strId)
 	if err != nil {
 		log.Error("failed to parse id", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to parse id"))
+		resp.Error(w, r, http.StatusBadRequest, "failed to parse id")
 		return
 	}
 
 	task, err := t.service.GetTask(id)
 	if err != nil {
-		// Ошибку storage not found
+		if errors.Is(err, storage.ErrTaskNotFound) {
+			log.Error("task not found", sl.Err(err))
+			w.WriteHeader(http.StatusNotFound)
+			resp.Error(w, r, http.StatusNotFound, "task not found")
+			return
+		}
 		log.Error("failed to get task", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to get task"))
+		resp.Error(w, r, http.StatusInternalServerError, "failed to get task")
 		return
 	}
 
-	render.JSON(w, r, resp.OK(task))
+	resp.OK(w, r, http.StatusOK, task)
 }
 
 func (t *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
@@ -133,18 +138,21 @@ func (t *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(strId)
 	if err != nil {
 		log.Error("failed to parse id", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to parse id"))
+		resp.Error(w, r, http.StatusBadRequest, "failed to parse id")
 		return
 	}
 
 	log.Info("deleting task", slog.Int("id", id))
 	id, err = t.service.DeleteTask(id)
 	if err != nil {
-		// if errors.Is(err) {
-		// 	log.Error("task not found")
-		// }
+		if errors.Is(err, storage.ErrTaskNotFound) {
+			log.Error("task not found", sl.Err(err))
+			w.WriteHeader(http.StatusNotFound)
+			resp.Error(w, r, http.StatusNotFound, "task not found")
+			return
+		}
 		log.Error("failed to delete task", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to delete task"))
+		resp.Error(w, r, http.StatusInternalServerError, "failed to delete task")
 		return
 	}
 
@@ -153,7 +161,7 @@ func (t *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info("task deleted", slog.Int("id", id))
-	render.JSON(w, r, resp.OK(res))
+	resp.OK(w, r, http.StatusOK, res)
 }
 
 func (t *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
@@ -167,7 +175,7 @@ func (t *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(strId)
 	if err != nil {
 		log.Error("failed to parse id", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to parse id"))
+		resp.Error(w, r, http.StatusBadRequest, "failed to parse id")
 		return
 	}
 
@@ -176,23 +184,28 @@ func (t *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			log.Error("request body is empty", sl.Err(err))
-			render.JSON(w, r, resp.Error("empty request"))
+			resp.Error(w, r, http.StatusBadRequest, "empty request")
 			return
 		}
 		log.Error("failed to decode request body", sl.Err(err))
-		render.JSON(w, r, "failed to decode request body")
+		resp.Error(w, r, http.StatusBadRequest, "failed to decode request body")
 		return
 	}
 
 	log.Info("updating task", slog.Int("id", id))
 	task, err := t.service.UpdateTask(id, req)
 	if err != nil {
-		// Ошибка storage not found
+		if errors.Is(err, storage.ErrTaskNotFound) {
+			log.Error("task not found", sl.Err(err))
+			w.WriteHeader(http.StatusNotFound)
+			resp.Error(w, r, http.StatusNotFound, "task not found")
+			return
+		}
 		log.Error("failed to update task", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to update task"))
+		resp.Error(w, r, http.StatusInternalServerError, "failed to update task")
 		return
 	}
 
 	log.Info("task updated", slog.Int("id", int(task.Id)))
-	render.JSON(w, r, resp.OK(task))
+	resp.OK(w, r, http.StatusOK, task)
 }

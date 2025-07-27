@@ -2,11 +2,13 @@ package postgresql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/Swiffy12/taskify/internal/http-server/models"
+	"github.com/Swiffy12/taskify/internal/storage"
 	_ "github.com/lib/pq"
 )
 
@@ -39,6 +41,7 @@ func New(host, port, user, password, dbName string) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
 
 	stmtIdx, err := db.Prepare(`
 		CREATE INDEX IF NOT EXISTS idx_title ON tasks(title);
@@ -46,6 +49,7 @@ func New(host, port, user, password, dbName string) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmtIdx.Close()
 
 	_, err = stmt.Exec()
 	if err != nil {
@@ -67,6 +71,8 @@ func (s *Storage) CreateTask(title, description string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
+
 	createdAt := time.Now()
 	updatedAt := createdAt
 
@@ -93,6 +99,7 @@ func (s *Storage) GetAllTasks(title string) ([]models.Task, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
 
 	var rows *sql.Rows
 	if len(args) > 0 {
@@ -103,6 +110,7 @@ func (s *Storage) GetAllTasks(title string) ([]models.Task, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+
 	defer rows.Close()
 
 	tasks := make([]models.Task, 0)
@@ -136,6 +144,7 @@ func (s *Storage) GetTask(id int) (models.Task, error) {
 	if err != nil {
 		return models.Task{}, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
 
 	var task models.Task
 	row := stmt.QueryRow(id)
@@ -148,6 +157,9 @@ func (s *Storage) GetTask(id int) (models.Task, error) {
 		&task.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.Task{}, storage.ErrTaskNotFound
+		}
 		return models.Task{}, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -161,11 +173,15 @@ func (s *Storage) DeleteTask(id int) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
 
 	row := stmt.QueryRow(id)
 	var respId int
 	err = row.Scan(&respId)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, storage.ErrTaskNotFound
+		}
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -204,6 +220,8 @@ func (s *Storage) UpdateTask(id int, title, description, status string) (models.
 	if err != nil {
 		return models.Task{}, fmt.Errorf("%s: %w", op, err)
 	}
+	defer stmt.Close()
+
 	args = append(args, id)
 
 	row := stmt.QueryRow(args...)
@@ -217,6 +235,9 @@ func (s *Storage) UpdateTask(id int, title, description, status string) (models.
 		&task.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.Task{}, storage.ErrTaskNotFound
+		}
 		return models.Task{}, fmt.Errorf("%s: %w", op, err)
 	}
 

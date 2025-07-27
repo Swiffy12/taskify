@@ -38,14 +38,14 @@ func (u *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	err := render.DecodeJSON(r.Body, &user)
 	if err != nil {
 		log.Error("failed to decode request body", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to decode request body"))
+		resp.Error(w, r, http.StatusBadRequest, "failed to decode request body")
 		return
 	}
 
 	if err := validator.New().Struct(user); err != nil {
 		validateErr := err.(validator.ValidationErrors)
 		log.Error("invalid request", sl.Err(err))
-		render.JSON(w, r, resp.ValidationError(validateErr))
+		resp.ValidationError(w, r, http.StatusBadRequest, validateErr)
 		return
 	}
 
@@ -53,12 +53,12 @@ func (u *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	userId, err := u.sso.Register(context.Background(), user.Email, user.Password)
 	if err != nil {
 		log.Error("internal error", sl.Err(err))
-		render.JSON(w, r, resp.Error("internal error"))
+		resp.Error(w, r, http.StatusInternalServerError, "internal error")
 		return
 	}
 	log.Info("registered user", slog.String("email", user.Email))
 
-	render.JSON(w, r, resp.OK(userId))
+	resp.OK(w, r, http.StatusOK, userId)
 }
 
 func (u *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -72,14 +72,14 @@ func (u *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	err := render.DecodeJSON(r.Body, &user)
 	if err != nil {
 		log.Error("failed to decode request body", sl.Err(err))
-		render.JSON(w, r, resp.Error("failed to decode request body"))
+		resp.Error(w, r, http.StatusBadRequest, "failed to decode request body")
 		return
 	}
 
 	if err := validator.New().Struct(user); err != nil {
 		validateErr := err.(validator.ValidationErrors)
 		log.Error("invalid request", sl.Err(err))
-		render.JSON(w, r, resp.ValidationError(validateErr))
+		resp.ValidationError(w, r, http.StatusBadRequest, validateErr)
 		return
 	}
 
@@ -87,10 +87,10 @@ func (u *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	token, err := u.sso.Login(context.Background(), user.Email, user.Password, u.sso.AppId)
 	if err != nil {
 		log.Error("internal error", sl.Err(err))
-		render.JSON(w, r, resp.Error("internal error"))
+		resp.Error(w, r, http.StatusInternalServerError, "internal error")
 		return
 	}
 	log.Info("user is logged in", slog.String("email", user.Email))
 
-	render.JSON(w, r, resp.OK(token))
+	resp.OK(w, r, http.StatusOK, token)
 }

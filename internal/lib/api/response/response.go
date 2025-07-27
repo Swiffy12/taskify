@@ -2,8 +2,10 @@ package resp
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
+	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -15,24 +17,29 @@ type Response struct {
 
 const (
 	ResultOK    = "OK"
-	ResultError = "Error"
+	ResultError = "error"
 )
 
-func OK(data any) Response {
-	return Response{
+func OK(w http.ResponseWriter, r *http.Request, status int, data any) {
+	resp := Response{
 		Result: ResultOK,
 		Data:   data,
 	}
+	w.WriteHeader(status)
+	render.JSON(w, r, resp)
 }
 
-func Error(msg string) Response {
-	return Response{
+func Error(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	resp := Response{
 		Result: ResultError,
 		Error:  msg,
 	}
+
+	w.WriteHeader(status)
+	render.JSON(w, r, resp)
 }
 
-func ValidationError(errs validator.ValidationErrors) Response {
+func ValidationError(w http.ResponseWriter, r *http.Request, status int, errs validator.ValidationErrors) {
 	var errMsgs []string
 
 	for _, err := range errs {
@@ -44,8 +51,11 @@ func ValidationError(errs validator.ValidationErrors) Response {
 		}
 	}
 
-	return Response{
+	resp := Response{
 		Result: ResultError,
 		Error:  strings.Join(errMsgs, ", "),
 	}
+
+	w.WriteHeader(status)
+	render.JSON(w, r, resp)
 }

@@ -2,11 +2,13 @@ package taskshandler
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
 
+	kafkaclient "github.com/Swiffy12/taskify/internal/clients/mail-notifier/kafka-client"
 	"github.com/Swiffy12/taskify/internal/http-server/models"
 	resp "github.com/Swiffy12/taskify/internal/lib/api/response"
 	"github.com/Swiffy12/taskify/internal/lib/logger/sl"
@@ -17,8 +19,9 @@ import (
 )
 
 type TaskHandler struct {
-	log     *slog.Logger
-	service TaskService
+	log          *slog.Logger
+	mailNotifier *kafkaclient.Producer
+	service      TaskService
 }
 
 //go:generate mockery --r --name TaskService --output ./mocks --case underscore
@@ -30,8 +33,8 @@ type TaskService interface {
 	UpdateTask(id int, req models.UpdateTaskRequest) (models.Task, error)
 }
 
-func New(log *slog.Logger, service TaskService) *TaskHandler {
-	return &TaskHandler{log: log, service: service}
+func New(log *slog.Logger, mailNotifier *kafkaclient.Producer, service TaskService) *TaskHandler {
+	return &TaskHandler{log: log, mailNotifier: mailNotifier, service: service}
 }
 
 func (t *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
@@ -67,6 +70,11 @@ func (t *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		log.Error("failed to create task", sl.Err(err))
 		resp.Error(w, r, http.StatusInternalServerError, "failed to create task")
 		return
+	}
+
+	err = t.mailNotifier.Send(fmt.Sprintf("task created with id: %d", id))
+	if err != nil {
+		log.Error("failed to send mail notification", sl.Err(err))
 	}
 
 	res := models.TaskIdResponse{

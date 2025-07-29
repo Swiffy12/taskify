@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	kafkaclient "github.com/Swiffy12/taskify/internal/clients/mail-notifier/kafka-client"
 	ssogrpc "github.com/Swiffy12/taskify/internal/clients/sso/grpc"
 	"github.com/Swiffy12/taskify/internal/config"
 	taskshandler "github.com/Swiffy12/taskify/internal/http-server/handlers/tasks"
@@ -19,13 +20,25 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// graceful shutdown for both clients
 func main() {
 	config := config.MustLoad()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	log := setupLogger(config.Env)
 
+	mnClient := kafkaclient.New(
+		ctx,
+		log,
+		config.Clients.Kafka.Address,
+		config.Clients.Kafka.Topic,
+		config.Clients.Kafka.Timeout,
+		config.Clients.Kafka.Partition,
+	)
+
 	ssoClient, err := ssogrpc.New(
-		context.Background(),
+		ctx,
 		log,
 		config.Clients.SSO.Address,
 		config.Clients.SSO.Timeout,
@@ -51,7 +64,7 @@ func main() {
 	defer storage.DB.Close()
 
 	taskService := taskservice.New(storage)
-	taskHandler := taskshandler.New(log, taskService)
+	taskHandler := taskshandler.New(log, mnClient, taskService)
 	usersHandler := usershandler.New(log, ssoClient)
 	router := chi.NewRouter()
 
@@ -87,7 +100,7 @@ func main() {
 	<-done
 	log.Info("stopping server")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {

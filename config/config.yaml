@@ -18,3 +18,7 @@ clients:
     address: "localhost:44044"
     timeout: 30s
     retries_count: 5
+  kafka:
+    address: "localhost:9092"
+    topic: "task"
+    partition: 0

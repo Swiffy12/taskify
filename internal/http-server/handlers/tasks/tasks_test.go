@@ -20,7 +20,7 @@ func TestCreateTask(t *testing.T) {
 	taskServiceMock := mocks.NewMockTaskService(t)
 	logger := slogdiscard.NewDiscardLogger()
 
-	handler := taskshandler.New(logger, taskServiceMock)
+	handler := taskshandler.New(logger, nil, taskServiceMock)
 
 	cases := []struct {
 		name           string

@@ -17,7 +17,7 @@ type Config struct {
 	Storage     `yaml:"postgresql"`
 	Clients     ClientsConfig `yaml:"clients"`
 	AppSecret   string        `yaml:"app_secret" env-required:"true" env:"APP_SECRET"`
-	AppId       int32         `yaml:"app_id" env-default:2`
+	AppId       int32         `yaml:"app_id" env-default:"2"`
 }
 
 type Storage struct {
@@ -29,13 +29,24 @@ type Storage struct {
 }
 
 type Client struct {
-	Address      string        `yaml:"address"`
-	Timeout      time.Duration `yaml:"timeout"`
-	RetriesCount int           `yaml:"retries_count"`
+	Address string        `yaml:"address"`
+	Timeout time.Duration `yaml:"timeout"`
+}
+
+type SSOClient struct {
+	Client
+	RetriesCount int `yaml:"retries_count"`
+}
+
+type MailNotifierClient struct {
+	Client
+	Topic     string `yaml:"topic"`
+	Partition int    `yaml:"partition"`
 }
 
 type ClientsConfig struct {
-	SSO Client `yaml:"sso"`
+	SSO   SSOClient          `yaml:"sso"`
+	Kafka MailNotifierClient `yaml:"kafka"`
 }
 
 func MustLoad() *Config {

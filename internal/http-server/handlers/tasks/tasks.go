@@ -72,7 +72,7 @@ func (t *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = t.mailNotifier.Send(fmt.Sprintf("task created with id: %d", id))
+	err = t.mailNotifier.Send(fmt.Sprintf("task created with id: %d, title: %s, description: %s", id, req.Title, req.Description))
 	if err != nil {
 		log.Error("failed to send mail notification", sl.Err(err))
 	}
